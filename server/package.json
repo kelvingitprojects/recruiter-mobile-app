@@ -1,0 +1,35 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@fastify/cors": "^11.2.0",
+    "@fastify/multipart": "^9.3.0",
+    "@fastify/static": "^8.3.0",
+    "@prisma/client": "^5.22.0",
+    "bcryptjs": "^3.0.3",
+    "expo-asset": "^12.0.11",
+    "expo-font": "^14.0.10",
+    "fastify": "^5.6.2",
+    "graphql": "^16.12.0",
+    "jsonwebtoken": "^9.0.3",
+    "mercurius": "^16.6.0",
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.11",
+    "prisma": "^5.22.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}

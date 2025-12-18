@@ -1,0 +1,113 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String         @id @default(uuid())
+  email            String         @unique
+  name             String
+  role             String
+  location         String?
+  bio              String?
+  logoUrl          String?
+  createdAt        DateTime       @default(now())
+  lastActive       DateTime       @default(now())
+  title            String?
+  experience       Int?           @default(0)
+  skills           String?
+  employmentStatus String?
+  hourlyRate       Float?
+  coverUrl         String?
+  resumeUrl        String?
+  boosted          Boolean        @default(false)
+  company          String?
+  industry         String?
+  plan             String         @default("free")
+  swipeCount       Int            @default(0)
+  superLikeCount   Int            @default(0)
+  lastSwipeReset   DateTime       @default(now())
+  password         String?
+  resetToken       String?
+  resetTokenExpiry DateTime?
+  applications     Application[]
+  jobs             Job[]          @relation("RecruiterJobs")
+  notifications    Notification[]
+  swipesReceived   Swipe[]        @relation("SwipesReceived")
+  swipesMade       Swipe[]        @relation("SwipesMade")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Job {
+  id              String        @id @default(uuid())
+  title           String
+  company         String
+  location        String
+  salaryMax       Int?
+  skills          String?
+  logoUrl         String?
+  urgencyLevel    Int           @default(0)
+  boosted         Boolean       @default(false)
+  postedAt        DateTime      @default(now())
+  lastActive      DateTime      @default(now())
+  description     String?
+  recruiterId     String
+  views           Int           @default(0)
+  applicantsCount Int           @default(0)
+  applications    Application[]
+  recruiter       User          @relation("RecruiterJobs", fields: [recruiterId], references: [id])
+  swipesReceived  Swipe[]       @relation("JobSwipes")
+}
+
+model Swipe {
+  id          String   @id @default(uuid())
+  direction   String
+  createdAt   DateTime @default(now())
+  swiperId    String
+  jobId       String?
+  candidateId String?
+  candidate   User?    @relation("SwipesReceived", fields: [candidateId], references: [id])
+  job         Job?     @relation("JobSwipes", fields: [jobId], references: [id])
+  swiper      User     @relation("SwipesMade", fields: [swiperId], references: [id])
+}
+
+model Application {
+  id          String           @id @default(uuid())
+  message     String?
+  status      String           @default("pending")
+  feedback    String?
+  resumeUrl   String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  jobId       String
+  candidateId String
+  candidate   User             @relation(fields: [candidateId], references: [id])
+  job         Job              @relation(fields: [jobId], references: [id])
+  logs        ApplicationLog[]
+}
+
+model ApplicationLog {
+  id            String      @id @default(uuid())
+  applicationId String
+  action        String
+  oldStatus     String?
+  newStatus     String?
+  note          String?
+  createdAt     DateTime    @default(now())
+  application   Application @relation(fields: [applicationId], references: [id])
+}
