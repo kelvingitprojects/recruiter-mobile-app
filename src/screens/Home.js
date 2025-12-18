@@ -70,8 +70,9 @@ export default function Home({ navigation }) {
           ref={deckRef}
           items={filteredItems}
           renderCard={item => <Card item={item} role={role} onboarded={onboarded} onShowMore={(it) => setPreviewItem(it)} onPress={(it) => {
-            if (role === 'recruiter') navigation.navigate('CandidateDetail', { id: it.id, initial: it });
-            else navigation.navigate('JobDetail', { id: it.id, initial: it });
+            const serialized = JSON.parse(JSON.stringify(it));
+            if (role === 'recruiter') navigation.navigate('CandidateDetail', { id: it.id, initial: serialized });
+            else navigation.navigate('JobDetail', { id: it.id, initial: serialized });
           }} />}
           onLongPress={i => setPreviewItem(i)}
           onSwipeRight={i => likeMut.mutate(i, { onSuccess: () => { if (Platform.OS !== 'web') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setMatchItem(i); Animated.sequence([Animated.timing(overlayOpacity, { toValue: 1, duration: 200, useNativeDriver: true }), Animated.timing(overlayOpacity, { toValue: 0, duration: 700, useNativeDriver: true })]).start(() => setMatchItem(null)); setToast('Liked'); setTimeout(() => setToast(''), 1500); } })}

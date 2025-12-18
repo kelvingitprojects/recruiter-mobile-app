@@ -163,6 +163,7 @@ function RootNavigator() {
               <Stack.Screen name="JobEditor" component={JobEditor} options={{ title: 'Edit Job' }} />
               <Stack.Screen name="CandidateDetail" component={require('./src/screens/CandidateDetail').default} options={{ title: 'Candidate' }} />
               <Stack.Screen name="Subscription" component={Subscription} options={{ title: 'Subscription' }} />
+              <Stack.Screen name="Schedule" component={ScheduleModal} options={{ presentation: 'modal' }} />
             </>
             )
           ) : (

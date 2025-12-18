@@ -121,6 +121,17 @@ const start = async () => {
     const address = await app.listen({ port: PORT, host: '0.0.0.0' });
     console.log(`Server running at ${address}/graphql`);
 
+    // DB Health Check
+    try {
+      console.log('Checking database connection...');
+      await prisma.$connect();
+      console.log('Database connected successfully');
+    } catch (dbError) {
+      console.error('Database connection failed:', dbError);
+      // Fail fast
+      process.exit(1);
+    }
+
     const shutdown = async () => {
       console.log('Shutting down...');
       await app.close();
