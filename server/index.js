@@ -1,3 +1,10 @@
+const dns = require('dns');
+try {
+  dns.setDefaultResultOrder('ipv4first');
+} catch (e) {
+  console.warn('Could not set default DNS result order to ipv4first', e);
+}
+
 const Fastify = require('fastify');
 const mercurius = require('mercurius');
 const cors = require('@fastify/cors');
@@ -13,6 +20,7 @@ const { schema } = require('./schema');
 const { resolvers } = require('./resolvers');
 const jwt = require('jsonwebtoken');
 const { PrismaClient } = require('@prisma/client');
+const { Server } = require('socket.io');
 
 const prisma = new PrismaClient();
 
@@ -98,52 +106,34 @@ const start = async () => {
     console.log('Starting server...');
     // Simple in-memory rate limit per IP
     const buckets = new Map();
-    const LIMIT = parseInt(process.env.RATE_LIMIT_MAX || '120', 10); // req/min
-    const WINDOW_MS = 60 * 1000;
 
-    app.addHook('onRequest', async (req, reply) => {
-      try {
-        const ip = req.ip || req.headers['x-forwarded-for'] || 'unknown';
-        const now = Date.now();
-        const b = buckets.get(ip) || { count: 0, reset: now + WINDOW_MS };
-        if (now > b.reset) {
-          b.count = 0;
-          b.reset = now + WINDOW_MS;
-        }
-        b.count += 1;
-        buckets.set(ip, b);
-        if (b.count > LIMIT) {
-          reply.code(429).send({ error: 'Too many requests' });
-        }
-      } catch (e) {}
+    await app.ready();
+    const io = new Server(app.server, {
+      cors: {
+        origin: '*',
+        methods: ['GET', 'POST']
+      }
     });
 
-    const address = await app.listen({ port: PORT, host: '0.0.0.0' });
-    console.log(`Server running at ${address}/graphql`);
+    io.on('connection', (socket) => {
+      console.log('Socket client connected:', socket.id);
+      socket.on('disconnect', () => {
+        // console.log('Socket client disconnected:', socket.id);
+      });
+    });
 
-    // DB Health Check
-    try {
-      console.log('Checking database connection...');
-      await prisma.$connect();
-      console.log('Database connected successfully');
-    } catch (dbError) {
-      console.error('Database connection failed:', dbError);
-      // Fail fast
-      process.exit(1);
-    }
+    // Make io accessible in requests if needed (optional)
+    app.io = io;
 
-    const shutdown = async () => {
-      console.log('Shutting down...');
-      await app.close();
-      await prisma.$disconnect();
-      process.exit(0);
-    };
+    await app.listen({ port: PORT, host: '0.0.0.0' });
+    console.log(`Server running at http://127.0.0.1:${PORT}/graphql`);
 
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
+    // Test DB connection
+    console.log('Checking database connection...');
+    await prisma.$connect();
+    console.log('Database connected successfully');
   } catch (err) {
     console.error('FAILED TO START:', err);
-    await prisma.$disconnect();
     process.exit(1);
   }
 };

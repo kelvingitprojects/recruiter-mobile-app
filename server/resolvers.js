@@ -54,7 +54,7 @@ const checkQuota = async (user, type, prisma) => {
   // Define limits
   const limits = {
     free: { swipe: 50, superlike: 1, jobs: 1 },
-    pro: { swipe: 999999, superlike: 5, jobs: 5 },
+    pro: { swipe: 999999, superlike: 5, jobs: 3 },
     enterprise: { swipe: 999999, superlike: 999999, jobs: 999999 }
   };
 
@@ -89,11 +89,25 @@ const checkQuota = async (user, type, prisma) => {
 };
 
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+
+const checkAuth = (context, resourceOwnerId) => {
+  if (!context.userId) {
+    throw new Error('Not authenticated');
+  }
+  if (resourceOwnerId && context.userId !== resourceOwnerId) {
+    throw new Error('Not authorized');
+  }
+};
 
 const resolvers = {
   User: {
     skills: (parent) => parseSkills(parent.skills),
-    notifications: (parent, _, { prisma }) => prisma.notification.findMany({ where: { userId: parent.id }, orderBy: { createdAt: 'desc' } })
+    notifications: (parent, _, { prisma, userId }) => {
+      // Only show notifications if requesting own user
+      if (userId && parent.id !== userId) return []; 
+      return prisma.notification.findMany({ where: { userId: parent.id }, orderBy: { createdAt: 'desc' } });
+    }
   },
   Notification: {
     createdAt: (parent) => parent.createdAt.toISOString()
@@ -120,10 +134,13 @@ const resolvers = {
     candidates: async (_, __, { prisma }) => {
       return prisma.user.findMany({ where: { role: 'candidate' } });
     },
-    me: async (_, { id }, { prisma }) => {
-      return prisma.user.findUnique({ where: { id } });
+    me: async (_, { id }, context) => {
+      checkAuth(context, id);
+      return context.prisma.user.findUnique({ where: { id } });
     },
-    candidateStack: async (_, { recruiterId }, { prisma }) => {
+    candidateStack: async (_, { recruiterId }, context) => {
+      checkAuth(context, recruiterId);
+      const { prisma } = context;
       const recruiter = await prisma.user.findUnique({ where: { id: recruiterId } });
       if (!recruiter) throw new Error('Recruiter not found');
 
@@ -192,7 +209,9 @@ const resolvers = {
       return scored.sort((a, b) => b.matchScore - a.matchScore).slice(0, 50);
     },
 
-    jobStack: async (_, { candidateId }, { prisma }) => {
+    jobStack: async (_, { candidateId }, context) => {
+      checkAuth(context, candidateId);
+      const { prisma } = context;
       const candidate = await prisma.user.findUnique({ where: { id: candidateId } });
       if (!candidate) throw new Error('Candidate not found');
 
@@ -254,15 +273,17 @@ const resolvers = {
       return scored.sort((a, b) => b.matchScore - a.matchScore).slice(0, 50);
     },
 
-    myJobs: async (_, { recruiterId }, { prisma }) => {
-      return prisma.job.findMany({
+    myJobs: async (_, { recruiterId }, context) => {
+      checkAuth(context, recruiterId);
+      return context.prisma.job.findMany({
         where: { recruiterId },
         orderBy: { postedAt: 'desc' }
       });
     },
 
-    myApplications: async (_, { recruiterId, skip, take }, { prisma }) => {
-      return prisma.application.findMany({
+    myApplications: async (_, { recruiterId, skip, take }, context) => {
+      checkAuth(context, recruiterId);
+      return context.prisma.application.findMany({
         where: {
           job: {
             recruiterId: recruiterId
@@ -274,16 +295,18 @@ const resolvers = {
       });
     },
 
-    myCandidateApplications: async (_, { candidateId }, { prisma }) => {
-      return prisma.application.findMany({
+    myCandidateApplications: async (_, { candidateId }, context) => {
+      checkAuth(context, candidateId);
+      return context.prisma.application.findMany({
         where: { candidateId },
         orderBy: { createdAt: 'desc' },
         include: { job: true }
       });
     },
 
-    myNotifications: async (_, { userId }, { prisma }) => {
-      return prisma.notification.findMany({
+    myNotifications: async (_, { userId }, context) => {
+      checkAuth(context, userId);
+      return context.prisma.notification.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' }
       });
@@ -380,7 +403,9 @@ const resolvers = {
 
       return true;
     },
-    createJob: async (_, { recruiterId, input }, { prisma }) => {
+    createJob: async (_, { recruiterId, input }, context) => {
+      checkAuth(context, recruiterId);
+      const { prisma } = context;
       const recruiter = await prisma.user.findUnique({ where: { id: recruiterId } });
       if (!recruiter) throw new Error('Recruiter not found');
       if (recruiter.role !== 'recruiter') throw new Error('Only recruiters can create jobs');
@@ -401,7 +426,14 @@ const resolvers = {
       });
     },
 
-    updateJob: async (_, { id, input }, { prisma }) => {
+    updateJob: async (_, { id, input }, context) => {
+      checkAuth(context);
+      const { prisma, userId } = context;
+      
+      const job = await prisma.job.findUnique({ where: { id } });
+      if (!job) throw new Error('Job not found');
+      if (job.recruiterId !== userId) throw new Error('Not authorized to update this job');
+
       const data = { ...input };
       if (input.skills) {
         data.skills = JSON.stringify(input.skills);
@@ -412,7 +444,9 @@ const resolvers = {
       });
     },
 
-    updateProfile: async (_, { id, input }, { prisma }) => {
+    updateProfile: async (_, { id, input }, context) => {
+      checkAuth(context, id);
+      const { prisma } = context;
       const data = { ...input };
       if (data.name && data.name.length > 120) throw new Error('Name too long');
       if (data.email && data.email.length > 200) throw new Error('Email too long');
@@ -448,15 +482,20 @@ const resolvers = {
       });
     },
 
-    swipe: async (_, { input }, { prisma }) => {
+    swipe: async (_, { input }, context) => {
       const { direction, targetId, targetType, swiperId } = input;
+      checkAuth(context, swiperId);
+      const { prisma } = context;
       
       if (!swiperId) {
         throw new Error("swiperId is required");
       }
 
       const swiper = await prisma.user.findUnique({ where: { id: swiperId } });
-      await checkQuota(swiper, 'swipe', prisma);
+      
+      // Check quota based on direction
+      const quotaType = direction === 'up' ? 'superlike' : 'swipe';
+      await checkQuota(swiper, quotaType, prisma);
 
       const data = {
         direction,
@@ -467,8 +506,12 @@ const resolvers = {
         data.candidateId = targetId;
         // Update stats
         if (['right', 'up'].includes(direction)) {
-           // Increment swipe count
-           await prisma.user.update({ where: { id: swiperId }, data: { swipeCount: { increment: 1 } } });
+           // Increment swipe count or superlike count
+           if (direction === 'up') {
+             await prisma.user.update({ where: { id: swiperId }, data: { superLikeCount: { increment: 1 } } });
+           } else {
+             await prisma.user.update({ where: { id: swiperId }, data: { swipeCount: { increment: 1 } } });
+           }
 
            // Check for Match (Recruiter swiped Candidate)
            // Did Candidate swipe any Job posted by this Recruiter?
@@ -514,7 +557,11 @@ const resolvers = {
         data.jobId = targetId;
         // Update Job stats
         if (['right', 'up'].includes(direction)) {
-           await prisma.user.update({ where: { id: swiperId }, data: { swipeCount: { increment: 1 } } });
+           if (direction === 'up') {
+             await prisma.user.update({ where: { id: swiperId }, data: { superLikeCount: { increment: 1 } } });
+           } else {
+             await prisma.user.update({ where: { id: swiperId }, data: { swipeCount: { increment: 1 } } });
+           }
 
            await prisma.job.update({
              where: { id: targetId },
@@ -576,7 +623,9 @@ const resolvers = {
       return { ok: true }; 
     },
 
-    apply: async (_, { jobId, candidateId, message }, { prisma }) => {
+    apply: async (_, { jobId, candidateId, message }, context) => {
+      checkAuth(context, candidateId);
+      const { prisma } = context;
       const candidate = await prisma.user.findUnique({ where: { id: candidateId } });
       if (!candidate) throw new Error('Candidate not found');
       if (candidate.role !== 'candidate') throw new Error('Only candidates can apply');
@@ -628,17 +677,30 @@ const resolvers = {
       return true;
     },
 
-    markNotificationRead: async (_, { id }, { prisma }) => {
+    markNotificationRead: async (_, { id }, context) => {
+      // Need to verify ownership. But we only have notification ID.
+      // We should probably fetch notification first.
+      const { prisma, userId } = context;
+      checkAuth(context); // Just checks if logged in
+      
+      const notif = await prisma.notification.findUnique({ where: { id } });
+      if (!notif) throw new Error('Notification not found');
+      if (notif.userId !== userId) throw new Error('Not authorized');
+
       await prisma.notification.update({ where: { id }, data: { read: true } });
       return true;
     },
 
-    markAllNotificationsRead: async (_, { userId }, { prisma }) => {
+    markAllNotificationsRead: async (_, { userId }, context) => {
+      checkAuth(context, userId);
+      const { prisma } = context;
       await prisma.notification.updateMany({ where: { userId }, data: { read: true } });
       return true;
     },
 
-    upgradePlan: async (_, { userId, plan }, { prisma }) => {
+    upgradePlan: async (_, { userId, plan }, context) => {
+      checkAuth(context, userId);
+      const { prisma } = context;
       const isBoosted = ['pro', 'enterprise'].includes(plan);
       
       const user = await prisma.user.update({
@@ -656,9 +718,15 @@ const resolvers = {
       return user;
     },
 
-    updateApplicationStatus: async (_, { id, status, feedback }, { prisma }) => {
-      const oldApp = await prisma.application.findUnique({ where: { id } });
+    updateApplicationStatus: async (_, { id, status, feedback }, context) => {
+      checkAuth(context); // Basic login check
+      const { prisma, userId } = context;
+
+      const oldApp = await prisma.application.findUnique({ where: { id }, include: { job: true } });
       if (!oldApp) throw new Error('Application not found');
+      
+      // Verify the requester owns the job
+      if (oldApp.job.recruiterId !== userId) throw new Error('Not authorized');
 
       const updatedApp = await prisma.application.update({
         where: { id },

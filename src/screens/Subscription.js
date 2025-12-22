@@ -19,7 +19,8 @@ const PLANS = {
       features: [
         '50 Swipes per day',
         '1 Super Like per day',
-        'Basic Profile Visibility'
+        'Basic Profile Visibility',
+        'Who liked you: Locked 🔒'
       ],
       color: colors.muted
     },
@@ -32,10 +33,23 @@ const PLANS = {
         'Unlimited Swipes',
         '5 Super Likes per day',
         'Profile Boost (2x Visibility)',
-        'See who liked you'
+        'See who liked you ✅'
       ],
       color: colors.primary,
       recommended: true
+    },
+    {
+      id: 'enterprise',
+      name: 'Enterprise',
+      price: 'R399',
+      period: '/month',
+      features: [
+        'Unlimited Swipes',
+        'Unlimited Super Likes',
+        'Profile Boost (10x Visibility)',
+        'Priority Message with Like'
+      ],
+      color: '#8b5cf6'
     }
   ],
   recruiter: [
@@ -47,20 +61,22 @@ const PLANS = {
       features: [
         '1 Active Job Post',
         '50 Candidate Swipes per day',
-        'Standard Job Visibility'
+        'Standard Job Visibility',
+        'See interested candidates: Locked 🔒'
       ],
       color: colors.muted
     },
     {
       id: 'pro',
       name: 'Pro',
-      price: 'R499',
+      price: 'R99',
       period: '/month',
       features: [
-        '5 Active Job Posts',
+        '3 Active Job Posts',
         'Unlimited Swipes',
         '5 Super Likes per day',
-        'Boosted Jobs (2x Visibility)'
+        'Boosted Jobs (2x Visibility)',
+        'See interested candidates ✅'
       ],
       color: colors.primary,
       recommended: true
@@ -68,16 +84,16 @@ const PLANS = {
     {
       id: 'enterprise',
       name: 'Enterprise',
-      price: 'R1999',
+      price: 'R399',
       period: '/month',
       features: [
         'Unlimited Job Posts',
         'Unlimited Swipes',
         'Unlimited Super Likes',
-        'Verified Company Badge',
-        'Dedicated Support'
+        'Featured Jobs (10x Visibility)',
+        'Advanced Filtering'
       ],
-      color: '#8b5cf6' // violet
+      color: '#8b5cf6'
     }
   ]
 };

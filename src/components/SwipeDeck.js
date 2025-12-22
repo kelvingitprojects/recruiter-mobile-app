@@ -77,7 +77,7 @@ function SwipeDeckInner({ items, renderCard, onSwipeRight, onSwipeLeft, onSwipeU
   }));
 
   const renderCards = () => {
-    if (index >= items.length) return <View style={styles.noMore} />;
+    if (index >= items.length) return <View style={styles.noMore}><Text style={{color: '#999'}}>No more items</Text></View>;
     return items
       .map((item, i) => {
         if (i < index) return null;

@@ -133,6 +133,9 @@ export const recordSwipeGql = async (input) => {
     const data = await c.request(mutation, { input });
     return data.swipe || { ok: true };
   } catch (e) {
+    if (e.message && e.message.includes('limit reached')) {
+      throw e;
+    }
     return recordSwipeLocal(input);
   }
 };
