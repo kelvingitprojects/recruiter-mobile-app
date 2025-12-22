@@ -109,6 +109,8 @@ export default function Home({ navigation }) {
               Toast.show({ type: 'success', text1: 'Liked', visibilityTime: 1500 });
             },
             onError: (err) => {
+              setLimitMessage(err.message || "Limit Reached");
+              setLimitModalVisible(true);
               Toast.show({
                 type: 'error',
                 text1: err.message || 'Error',
@@ -132,6 +134,8 @@ export default function Home({ navigation }) {
             onError: (err) => {
               // Reset card position if superlike fails
               deckRef.current?.reset();
+              setLimitMessage(err.message || "Limit Reached");
+              setLimitModalVisible(true);
               Toast.show({
                 type: 'error',
                 text1: err.message || "Limit Reached",
@@ -150,6 +154,35 @@ export default function Home({ navigation }) {
           />
         </View>
       </View>
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={limitModalVisible}
+        onRequestClose={() => setLimitModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.limitModalContent}>
+            <Ionicons name="alert-circle" size={48} color={colors.accent} style={{ marginBottom: 16 }} />
+            <Text style={styles.modalTitle}>Limit Reached</Text>
+            <Text style={styles.modalText}>{limitMessage}</Text>
+            <TouchableOpacity 
+              style={styles.upgradeBtn} 
+              onPress={() => {
+                setLimitModalVisible(false);
+                navigation.navigate('Subscription');
+              }}
+            >
+              <Text style={styles.upgradeBtnText}>Upgrade Plan</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.closeBtn} 
+              onPress={() => setLimitModalVisible(false)}
+            >
+              <Text style={styles.closeBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
       <PreviewModal visible={!!previewItem} item={previewItem} onClose={() => setPreviewItem(null)} />
       {matchItem ? (
         <Animated.View style={[styles.matchOverlay, { opacity: overlayOpacity }]}> 
@@ -181,4 +214,58 @@ const styles = StyleSheet.create({
   matchItem: { fontSize: 16 },
   scheduleBtn: { backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
   scheduleText: { color: '#fff', fontWeight: '700' },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24
+  },
+  limitModalContent: {
+    backgroundColor: colors.cardBg,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    width: '100%',
+    maxWidth: 340,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: colors.text,
+    marginBottom: 8,
+    textAlign: 'center'
+  },
+  modalText: {
+    fontSize: 16,
+    color: colors.muted,
+    marginBottom: 24,
+    textAlign: 'center'
+  },
+  upgradeBtn: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 12
+  },
+  upgradeBtnText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 16
+  },
+  closeBtn: {
+    paddingVertical: 12,
+  },
+  closeBtnText: {
+    color: colors.muted,
+    fontSize: 16
+  }
 });

@@ -5,6 +5,34 @@ try {
   console.warn('Could not set default DNS result order to ipv4first', e);
 }
 
+require('dotenv').config();
+const arcjet = require('@arcjet/node');
+const { shield, detectBot, tokenBucket } = require('@arcjet/node');
+
+const aj = arcjet.default({
+  key: process.env.ARCJET_KEY,
+  characteristics: ["ip.src"], // Track requests by IP
+  rules: [
+    // Shield protects against common attacks e.g. SQL injection
+    shield({ mode: "LIVE" }),
+    // Detect bots
+    detectBot({
+      mode: "LIVE", // Block bots. Use "DRY_RUN" to log only
+      // Allow useful bots. See https://arcjet.com/bot-list
+      allow: [
+        "CURL", // Allow curl for testing
+      ],
+    }),
+    // Rate limiting
+    tokenBucket({
+      mode: "LIVE",
+      refillRate: 5, // Refill 5 tokens per interval
+      interval: 10, // Interval in seconds
+      capacity: 10, // Bucket capacity
+    }),
+  ],
+});
+
 const Fastify = require('fastify');
 const mercurius = require('mercurius');
 const cors = require('@fastify/cors');
@@ -30,6 +58,25 @@ if (!fs.existsSync(uploadsDir)) {
 }
 
 const app = Fastify();
+
+app.addHook('onRequest', async (req, reply) => {
+  if (!process.env.ARCJET_KEY) return; // Skip if no key
+  try {
+    const decision = await aj.protect(req, { requested: 1 }); // Deduct 1 token
+    if (decision.isDenied()) {
+      if (decision.reason.isRateLimit()) {
+        reply.code(429).send({ error: "Too Many Requests" });
+      } else if (decision.reason.isBot()) {
+        reply.code(403).send({ error: "No bots allowed" });
+      } else {
+        reply.code(403).send({ error: "Forbidden" });
+      }
+    }
+  } catch (error) {
+    // Fail open if Arcjet fails
+    console.error("Arcjet error", error);
+  }
+});
 
 app.register(cors, {
   origin: '*',

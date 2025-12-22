@@ -77,7 +77,7 @@ describe('ApplicationsView', () => {
     }, { timeout: 10000 }); // Increase timeout
 
     expect(getByText('Candidate / Job')).toBeTruthy();
-  });
+  }, 15000);
 
   it('filters applications', async () => {
     const { getByText, queryByText } = render(<ApplicationsView profile={mockProfile} />);

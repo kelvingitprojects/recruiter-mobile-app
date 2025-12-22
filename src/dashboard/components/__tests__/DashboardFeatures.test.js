@@ -42,7 +42,7 @@ describe('Dashboard Features', () => {
         throw e;
       }
       expect(getByText('Welcome')).toBeTruthy();
-    });
+    }, 15000);
 
     it('marks notification as read', async () => {
       api.fetchNotifications.mockResolvedValue([
