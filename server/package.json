@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node --dns-result-order=ipv4first index.js",
-    "dev": "nodemon --exec \"node --dns-result-order=ipv4first\" index.js",
+    "start": "node index.js",
+    "dev": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -24,6 +24,7 @@
     "expo-font": "^14.0.10",
     "fastify": "^5.6.2",
     "graphql": "^16.12.0",
+    "graphql-request": "^7.4.0",
     "jsonwebtoken": "^9.0.3",
     "mercurius": "^16.6.0",
     "pg": "^8.16.3",

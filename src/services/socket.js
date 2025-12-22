@@ -43,3 +43,21 @@ const emit = (event, payload) => {
 };
 
 export const socket = { on, off, emit, connect, disconnect };
+
+// Chat helpers
+export const joinConversation = (conversationId) => {
+  ensureClient();
+  client.emit('chat:join', conversationId);
+};
+
+export const leaveConversation = (conversationId) => {
+  if (!client) return;
+  client.emit('chat:leave', conversationId);
+};
+
+export const sendChatMessage = (conversationId, text, token) => {
+  ensureClient();
+  client.emit('chat:send', { conversationId, text, token });
+};
+
+export const onChatMessage = (cb) => on('chat:message', cb);

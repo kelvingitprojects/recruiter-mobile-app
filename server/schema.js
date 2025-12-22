@@ -76,6 +76,25 @@ const schema = `
     logs: [ApplicationLog]
   }
 
+  type Conversation {
+    id: ID!
+    userAId: ID!
+    userBId: ID!
+    createdAt: String
+    participants: [User]
+    lastMessage: Message
+  }
+
+  type Message {
+    id: ID!
+    conversationId: ID!
+    senderId: ID!
+    text: String!
+    createdAt: String
+    readAt: String
+    sender: User
+  }
+
   input SwipeInput {
     direction: String!
     targetId: ID!
@@ -123,6 +142,8 @@ const schema = `
     myApplications(recruiterId: ID!, skip: Int, take: Int): [Application]
     myCandidateApplications(candidateId: ID!): [Application]
     myNotifications(userId: ID!): [Notification]
+    myConversations(userId: ID!): [Conversation]
+    conversationMessages(conversationId: ID!, skip: Int, take: Int): [Message]
   }
 
   type Mutation {
@@ -139,6 +160,9 @@ const schema = `
     markNotificationRead(id: ID!): Boolean
     markAllNotificationsRead(userId: ID!): Boolean
     upgradePlan(userId: ID!, plan: String!): User
+    startConversation(withUserId: ID!): Conversation
+    sendMessage(conversationId: ID!, text: String!): Message
+    markConversationRead(conversationId: ID!): Boolean
   }
 
   type AuthPayload {

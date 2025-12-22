@@ -101,6 +101,24 @@ const checkAuth = (context, resourceOwnerId) => {
 };
 
 const resolvers = {
+  Conversation: {
+    createdAt: (parent) => parent.createdAt.toISOString(),
+    participants: async (parent, _, { prisma }) => {
+      const ids = [parent.userAId, parent.userBId];
+      return prisma.user.findMany({ where: { id: { in: ids } } });
+    },
+    lastMessage: async (parent, _, { prisma }) => {
+      return prisma.message.findFirst({
+        where: { conversationId: parent.id },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
+  },
+  Message: {
+    createdAt: (parent) => parent.createdAt.toISOString(),
+    readAt: (parent) => parent.readAt ? parent.readAt.toISOString() : null,
+    sender: (parent, _, { prisma }) => prisma.user.findUnique({ where: { id: parent.senderId } })
+  },
   User: {
     skills: (parent) => parseSkills(parent.skills),
     notifications: (parent, _, { prisma, userId }) => {
@@ -309,6 +327,29 @@ const resolvers = {
       return context.prisma.notification.findMany({
         where: { userId },
         orderBy: { createdAt: 'desc' }
+      });
+    },
+
+    myConversations: async (_, { userId }, context) => {
+      checkAuth(context, userId);
+      const { prisma } = context;
+      return prisma.conversation.findMany({
+        where: { OR: [{ userAId: userId }, { userBId: userId }] },
+        orderBy: { createdAt: 'desc' }
+      });
+    },
+
+    conversationMessages: async (_, { conversationId, skip, take }, context) => {
+      checkAuth(context);
+      const { prisma, userId } = context;
+      const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
+      if (!conv) throw new Error('Conversation not found');
+      if (![conv.userAId, conv.userBId].includes(userId)) throw new Error('Not authorized');
+      return prisma.message.findMany({
+        where: { conversationId },
+        orderBy: { createdAt: 'asc' },
+        skip,
+        take
       });
     }
   },
@@ -775,6 +816,46 @@ const resolvers = {
       }
 
       return updatedApp;
+    },
+
+    startConversation: async (_, { withUserId }, context) => {
+      checkAuth(context);
+      const { prisma, userId } = context;
+      if (withUserId === userId) throw new Error('Cannot start conversation with yourself');
+      const [a, b] = [userId, withUserId].sort();
+      const existing = await prisma.conversation.findFirst({ where: { userAId: a, userBId: b } });
+      if (existing) return existing;
+      return prisma.conversation.create({ data: { userAId: a, userBId: b } });
+    },
+
+    sendMessage: async (_, { conversationId, text }, context) => {
+      checkAuth(context);
+      const { prisma, userId } = context;
+      const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
+      if (!conv) throw new Error('Conversation not found');
+      if (![conv.userAId, conv.userBId].includes(userId)) throw new Error('Not authorized');
+      const msg = await prisma.message.create({
+        data: { conversationId, senderId: userId, text }
+      });
+      try {
+        if (context.app && context.app.io) {
+          context.app.io.to(`conv:${conversationId}`).emit('chat:message', msg);
+        }
+      } catch (e) {}
+      return msg;
+    },
+
+    markConversationRead: async (_, { conversationId }, context) => {
+      checkAuth(context);
+      const { prisma, userId } = context;
+      const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
+      if (!conv) throw new Error('Conversation not found');
+      if (![conv.userAId, conv.userBId].includes(userId)) throw new Error('Not authorized');
+      await prisma.message.updateMany({
+        where: { conversationId, readAt: null, senderId: { not: userId } },
+        data: { readAt: new Date() }
+      });
+      return true;
     }
   }
 };

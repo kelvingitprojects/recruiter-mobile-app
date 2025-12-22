@@ -108,7 +108,7 @@ app.register(mercurius, {
         role = payload.role || null;
       }
     } catch (e) {}
-    return { prisma, userId, role };
+    return { prisma, userId, role, app };
   },
   graphiql: process.env.NODE_ENV !== 'production',
 });
@@ -164,6 +164,30 @@ const start = async () => {
 
     io.on('connection', (socket) => {
       console.log('Socket client connected:', socket.id);
+      socket.on('chat:join', (conversationId) => {
+        socket.join(`conv:${conversationId}`);
+      });
+      socket.on('chat:leave', (conversationId) => {
+        socket.leave(`conv:${conversationId}`);
+      });
+      socket.on('chat:send', async (payload) => {
+        try {
+          const { conversationId, text, token } = payload || {};
+          let senderId = null;
+          if (token) {
+            const data = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_change_me');
+            senderId = data.sub || data.userId;
+          }
+          if (!senderId) return;
+          const conv = await prisma.conversation.findUnique({ where: { id: conversationId } });
+          if (!conv) return;
+          if (![conv.userAId, conv.userBId].includes(senderId)) return;
+          const msg = await prisma.message.create({ data: { conversationId, senderId, text } });
+          io.to(`conv:${conversationId}`).emit('chat:message', msg);
+        } catch (e) {
+          console.error('chat:send error', e);
+        }
+      });
       socket.on('disconnect', () => {
         // console.log('Socket client disconnected:', socket.id);
       });
@@ -177,8 +201,12 @@ const start = async () => {
 
     // Test DB connection
     console.log('Checking database connection...');
-    await prisma.$connect();
-    console.log('Database connected successfully');
+    try {
+      await prisma.$connect();
+      console.log('Database connected successfully');
+    } catch (dbErr) {
+      console.error('Warning: Database connection check failed, but starting anyway:', dbErr.message);
+    }
   } catch (err) {
     console.error('FAILED TO START:', err);
     process.exit(1);
