@@ -5,7 +5,8 @@ try {
   console.warn('Could not set default DNS result order to ipv4first', e);
 }
 
-require('dotenv').config();
+const env = require('./config/env');
+const logger = require('./config/logger');
 const arcjet = require('@arcjet/node');
 const { shield, detectBot, tokenBucket } = require('@arcjet/node');
 
@@ -74,7 +75,7 @@ app.addHook('onRequest', async (req, reply) => {
     }
   } catch (error) {
     // Fail open if Arcjet fails
-    console.error("Arcjet error", error);
+    logger.error("Arcjet error", error);
   }
 });
 
@@ -103,18 +104,28 @@ app.register(mercurius, {
       const auth = request.headers.authorization || '';
       if (auth.startsWith('Bearer ')) {
         const token = auth.slice('Bearer '.length);
-        const payload = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_change_me');
+        const payload = jwt.verify(token, env.JWT_SECRET);
         userId = payload.sub || payload.userId || null;
         role = payload.role || null;
       }
     } catch (e) {}
     return { prisma, userId, role, app };
   },
-  graphiql: process.env.NODE_ENV !== 'production',
+  graphiql: env.isDev,
 });
 
 app.get('/', async (req, reply) => {
   return { status: 'ok', message: 'Swipe Backend Running' };
+});
+
+app.get('/health', async (req, reply) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    return { status: 'ok', db: 'connected', timestamp: new Date().toISOString() };
+  } catch (e) {
+    logger.error('Health check failed', e);
+    return reply.code(503).send({ status: 'error', db: 'disconnected' });
+  }
 });
 
 app.post('/upload', async (req, reply) => {
@@ -149,8 +160,8 @@ app.post('/upload', async (req, reply) => {
 
 const start = async () => {
   try {
-    const PORT = process.env.PORT || 4000;
-    console.log('Starting server...');
+    const PORT = env.PORT;
+    logger.info('Starting server...');
     // Simple in-memory rate limit per IP
     const buckets = new Map();
 
@@ -163,7 +174,7 @@ const start = async () => {
     });
 
     io.on('connection', (socket) => {
-      console.log('Socket client connected:', socket.id);
+      logger.info({ socketId: socket.id }, 'Socket client connected');
       socket.on('chat:join', (conversationId) => {
         socket.join(`conv:${conversationId}`);
       });
@@ -175,7 +186,7 @@ const start = async () => {
           const { conversationId, text, token } = payload || {};
           let senderId = null;
           if (token) {
-            const data = jwt.verify(token, process.env.JWT_SECRET || 'dev_secret_change_me');
+            const data = jwt.verify(token, env.JWT_SECRET);
             senderId = data.sub || data.userId;
           }
           if (!senderId) return;
@@ -185,7 +196,7 @@ const start = async () => {
           const msg = await prisma.message.create({ data: { conversationId, senderId, text } });
           io.to(`conv:${conversationId}`).emit('chat:message', msg);
         } catch (e) {
-          console.error('chat:send error', e);
+          logger.error('chat:send error', e);
         }
       });
       socket.on('disconnect', () => {
@@ -197,18 +208,18 @@ const start = async () => {
     app.io = io;
 
     await app.listen({ port: PORT, host: '0.0.0.0' });
-    console.log(`Server running at http://127.0.0.1:${PORT}/graphql`);
+    logger.info(`Server running at http://127.0.0.1:${PORT}/graphql`);
 
     // Test DB connection
-    console.log('Checking database connection...');
+    logger.info('Checking database connection...');
     try {
       await prisma.$connect();
-      console.log('Database connected successfully');
+      logger.info('Database connected successfully');
     } catch (dbErr) {
-      console.error('Warning: Database connection check failed, but starting anyway:', dbErr.message);
+      logger.error('Warning: Database connection check failed, but starting anyway:', dbErr.message);
     }
   } catch (err) {
-    console.error('FAILED TO START:', err);
+    logger.error('FAILED TO START:', err);
     process.exit(1);
   }
 };

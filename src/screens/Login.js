@@ -1,15 +1,10 @@
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Pressable, Alert } from 'react-native';
 import React from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { createAction } from '@reduxjs/toolkit';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '../theme/colors';
 import { loginAuth, signupAuth, requestPasswordReset } from '../services/api';
-
-const login = createAction('auth/login');
-const setRole = createAction('mode/setRole');
-
-const completeOnboarding = createAction('profile/completeOnboarding');
+import { login, setRole, completeOnboarding } from '../store';
 
 export default function Login() {
   const dispatch = useDispatch();

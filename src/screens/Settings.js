@@ -1,15 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Switch, Alert, Image } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { createAction } from '@reduxjs/toolkit';
 import { Ionicons } from '@expo/vector-icons';
 import colors, { applyTheme } from '../theme/colors';
 import { resetAlgorithm } from '../services/api';
 import { setAuthToken } from '../services/graphql';
-
-const logout = createAction('auth/logout');
-const setRole = createAction('mode/setRole');
-const setTheme = createAction('theme/set');
+import { logout, setRole, setTheme } from '../store';
 
 const SectionHeader = ({ title, icon }) => (
   <View style={styles.sectionHeader}>

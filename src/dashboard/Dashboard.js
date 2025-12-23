@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, useWindowDimensions, Alert } from 'react-native';
 import { useSelector } from 'react-redux';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '../theme/colors';
@@ -9,6 +9,7 @@ import JobRow from './components/JobRow';
 import ApplicationsView from './components/ApplicationsView';
 import NotificationsView from './components/NotificationsView';
 import SettingsView from './components/SettingsView';
+import { PLAN_LIMITS } from '../config/plans';
 
 export default function Dashboard({ navigation }) {
   const { width } = useWindowDimensions();
@@ -17,6 +18,24 @@ export default function Dashboard({ navigation }) {
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('jobs');
+
+  const currentPlan = profile?.plan || 'free';
+  const planLimits = PLAN_LIMITS.recruiter[currentPlan] || PLAN_LIMITS.recruiter.free;
+
+  const handlePostJob = () => {
+    if (jobs.length >= planLimits.jobs) {
+      Alert.alert(
+        'Limit Reached', 
+        `You have reached the limit of ${planLimits.jobs} active job(s) for your ${currentPlan} plan. Upgrade to post more!`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Upgrade', onPress: () => navigation.navigate('Subscription') }
+        ]
+      );
+    } else {
+      navigation.navigate('JobEditor');
+    }
+  };
 
   const loadJobs = async () => {
     if (!profile?.id) return;
@@ -63,8 +82,8 @@ export default function Dashboard({ navigation }) {
           <Text style={styles.headerTitle}>{getHeaderTitle()}</Text>
           {activeTab === 'jobs' && (
             <TouchableOpacity 
-              style={styles.createBtn} 
-              onPress={() => navigation.navigate('JobEditor')}
+              style={[styles.createBtn, jobs.length >= planLimits.jobs && { backgroundColor: colors.muted }]} 
+              onPress={handlePostJob}
             >
               <Ionicons name="add" size={20} color="#fff" />
               <Text style={styles.createBtnText}>Post New Job</Text>
@@ -96,9 +115,23 @@ export default function Dashboard({ navigation }) {
         )}
 
         {activeTab === 'candidates' && (
-          <View style={styles.content}>
-            <ApplicationsView profile={profile} />
-          </View>
+          !planLimits.viewCandidates ? (
+            <View style={[styles.content, { alignItems: 'center', justifyContent: 'center' }]}>
+              <Ionicons name="lock-closed" size={64} color={colors.muted} style={{ marginBottom: 16 }} />
+              <Text style={{ fontSize: 20, fontWeight: 'bold', color: colors.text, marginBottom: 8 }}>Candidates Locked</Text>
+              <Text style={{ fontSize: 16, color: colors.muted, textAlign: 'center', marginBottom: 24 }}>Upgrade to Pro to see who applied to your jobs!</Text>
+              <TouchableOpacity 
+                style={{ backgroundColor: colors.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 24 }}
+                onPress={() => navigation.navigate('Subscription')}
+              >
+                <Text style={{ color: '#fff', fontWeight: 'bold', fontSize: 16 }}>Upgrade Now</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.content}>
+              <ApplicationsView profile={profile} />
+            </View>
+          )
         )}
 
         {activeTab === 'notifications' && (

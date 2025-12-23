@@ -17,7 +17,6 @@ import {
   Pressable
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { createAction } from '@reduxjs/toolkit';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
@@ -26,12 +25,11 @@ import { ActivityIndicator } from 'react-native';
 import colors from '../theme/colors';
 import { updateProfile as updateProfileApi } from '../services/api';
 import { GRAPHQL_URL } from '../config/env';
+import { updateProfile } from '../store';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
-
-const updateProfile = createAction('profile/updateProfile');
 
 // --- Constants ---
 const JOB_TITLES = [

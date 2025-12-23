@@ -23,7 +23,7 @@ export default function Welcome({ navigation }) {
           <Ionicons name="log-in" color="#fff" size={18} />
           <Text style={styles.ctaText}>Get Started</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.ctaGhost} onPress={() => dispatch(login())}>
+        <TouchableOpacity style={styles.ctaGhost} onPress={() => dispatch(guestLogin())}>
           <Ionicons name="flash" color="#fff" size={18} />
           <Text style={styles.ctaGhostText}>Skip for now</Text>
         </TouchableOpacity>

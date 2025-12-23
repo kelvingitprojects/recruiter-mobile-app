@@ -1,13 +1,14 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Platform } from 'react-native';
+import { StyleSheet, Platform, useWindowDimensions } from 'react-native';
 import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Provider, useSelector, useDispatch } from 'react-redux';
-import { configureStore, createSlice } from '@reduxjs/toolkit';
+import { PersistGate } from 'redux-persist/integration/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './src/services/api';
+import { store, persistor } from './src/store';
 import Welcome from './src/screens/Welcome';
 import Login from './src/screens/Login';
 import Home from './src/screens/Home';
@@ -28,48 +29,8 @@ import { Ionicons } from '@expo/vector-icons';
 import colors, { applyTheme } from './src/theme/colors';
 import Toast from 'react-native-toast-message';
 
-const authSlice = createSlice({
-  name: 'auth',
-  initialState: { isAuthenticated: false },
-  reducers: {
-    login: state => { state.isAuthenticated = true },
-    logout: state => { state.isAuthenticated = false },
-  },
-});
 
-const modeSlice = createSlice({
-  name: 'mode',
-  initialState: { role: 'candidate' },
-  reducers: {
-    setRole: (state, action) => { state.role = action.payload },
-  },
-});
 
-const profileSlice = createSlice({
-  name: 'profile',
-  initialState: { onboarded: false, data: {} },
-  reducers: {
-    completeOnboarding: (state, action) => { state.onboarded = true; state.data = action.payload || {} },
-    updateProfile: (state, action) => { state.data = { ...state.data, ...action.payload } },
-  },
-});
-
-const themeSlice = createSlice({
-  name: 'theme',
-  initialState: { mode: 'light' },
-  reducers: {
-    set: (state, action) => { state.mode = action.payload },
-  },
-});
-
-const store = configureStore({
-  reducer: {
-    auth: authSlice.reducer,
-    mode: modeSlice.reducer,
-    profile: profileSlice.reducer,
-    theme: themeSlice.reducer,
-  },
-});
 
 const qc = queryClient;
 
@@ -188,11 +149,13 @@ function RootNavigator() {
 export default function App() {
   return (
     <Provider store={store}>
-      <QueryClientProvider client={qc}>
-        <StatusBar style="auto" />
-        <RootNavigator />
-        <Toast />
-      </QueryClientProvider>
+      <PersistGate loading={null} persistor={persistor}>
+        <QueryClientProvider client={qc}>
+          <StatusBar style="auto" />
+          <RootNavigator />
+          <Toast />
+        </QueryClientProvider>
+      </PersistGate>
     </Provider>
   );
 }

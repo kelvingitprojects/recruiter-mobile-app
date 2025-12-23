@@ -1,12 +1,9 @@
 import { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, Pressable, TouchableOpacity } from 'react-native';
 import { useDispatch } from 'react-redux';
-import { createAction } from '@reduxjs/toolkit';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '../theme/colors';
-
-const completeOnboarding = createAction('profile/completeOnboarding');
-const setRole = createAction('mode/setRole');
+import { completeOnboarding, setRole } from '../store';
 
 export default function OnboardingCandidate({ navigation }) {
   const dispatch = useDispatch();
